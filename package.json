@@ -1,0 +1,16 @@
+{
+  "name": "regexpp-map",
+  "version": "0",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "test": "node --test test.js"
+  },
+  "files": [
+    "index.js"
+  ],
+  "dependencies": {
+    "@eslint-community/regexpp": "^4.10.0",
+    "typescript": "^5.4.5"
+  }
+}
