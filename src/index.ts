@@ -173,4 +173,49 @@ export namespace RegExpMapper {
         onRegExpLiteral: (node: AST.RegExpLiteral, pattern: T) => T
         onStringAlternative: (node: AST.StringAlternative, elements: T[]) => T
     }
+
+    export function map<T> (
+        r: AST.Node,
+        onAlternative: (node: AST.Alternative, elements: T[]) => T,
+        onBoundaryAssertion: (node: AST.BoundaryAssertion) => T,
+        onLookaroundAssertion: (node: AST.LookaroundAssertion, elements: T[]) => T,
+        onBackreference: (node: AST.Backreference) => T,
+        onCapturingGroup: (node: AST.CapturingGroup, alternatives: T[]) => T,
+        onCharacter: (node: AST.Character) => T,
+        onCharacterClass: (node: AST.CharacterClass, elements: T[]) => T,
+        onCharacterClassRange: (node: AST.CharacterClassRange, min: T, max: T) => T,
+        onCharacterSet: (node: AST.CharacterSet) => T,
+        onClassIntersection: (node: AST.ClassIntersection, l: T, r: T) => T,
+        onClassStringDisjunction: (node: AST.ClassStringDisjunction, alternatives: T[]) => T,
+        onClassSubtraction: (node: AST.ClassSubtraction, l: T, r: T) => T,
+        onExpressionCharacterClass: (node: AST.ExpressionCharacterClass, inner: T) => T,
+        onFlags: (node: AST.Flags) => T,
+        onGroup: (node: AST.Group, alternatives: T[]) => T,
+        onPattern: (node: AST.Pattern, alternatives: T[]) => T,
+        onQuantifier: (node: AST.Quantifier, inner: T) => T,
+        onRegExpLiteral: (node: AST.RegExpLiteral, pattern: T) => T,
+        onStringAlternative: (node: AST.StringAlternative, elements: T[]) => T,
+    ): T {
+        return new RegExpMapper({
+            onAlternative,
+            onBoundaryAssertion,
+            onLookaroundAssertion,
+            onBackreference,
+            onCapturingGroup,
+            onCharacter,
+            onCharacterClass,
+            onCharacterClassRange,
+            onCharacterSet,
+            onClassIntersection,
+            onClassStringDisjunction,
+            onClassSubtraction,
+            onExpressionCharacterClass,
+            onFlags,
+            onGroup,
+            onPattern,
+            onQuantifier,
+            onRegExpLiteral,
+            onStringAlternative
+        }).visit(r);
+    }
 }

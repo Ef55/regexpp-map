@@ -1,2 +1,7 @@
+# npm & node.js
 build/
 node_modules/
+
+# direnv
+.direnv/
+.envrc
