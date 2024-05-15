@@ -3,14 +3,14 @@ import { AST } from "@eslint-community/regexpp"
 /**
  * The visitor to map an AST.
  */
-export class RegExpMapper<T> {
-    private readonly _handlers: RegExpMapper.Mappers<T>
+export class RegExpMapper<T, U> {
+    private readonly _handlers: RegExpMapper.Mappers<T, U>
 
     /**
      * Initialize this visitor.
      * @param handlers Callbacks for each node.
      */
-    public constructor(handlers: RegExpMapper.Mappers<T>) {
+    public constructor(handlers: RegExpMapper.Mappers<T, U>) {
         this._handlers = handlers
     }
 
@@ -62,6 +62,40 @@ export class RegExpMapper<T> {
         }
     }
 
+    private visitRange(node: AST.ClassRangesCharacterClassElement): U {
+        switch (node.type) {
+            case "Character":
+                return this.visitClassCharacter(node);
+            case "CharacterClassRange":
+                return this.visitClassCharacterClassRange(node);
+            case "CharacterSet":
+                return this.visitClassCharacterSet(node);
+        }
+    }
+
+    private visitSet(node: AST.UnicodeSetsCharacterClassElement): U {
+        switch (node.type) {
+            case "Character":
+                return this.visitClassCharacter(node);
+            case "CharacterClassRange":
+                return this.visitClassCharacterClassRange(node);
+            case "CharacterSet":
+                return this.visitClassCharacterSet(node);
+            // case "CharacterClass":
+            //     return this.visitClassCharacterClass(node);
+            // case "ClassStringDisjunction":
+            //     return this.visitClassClassStringDisjunction(node);
+            // case "ExpressionCharacterClass":
+            //     return this.visitClassExpressionCharacterClass(node);
+            default:
+                throw new Error(
+                    `Unicode sets (v flag) not yet supported: ${(node as Pick<AST.Node, "type">).type}`,
+                )
+}
+    }
+
+    // Regexes
+
     private visitAlternative(node: AST.Alternative): T {
         let elements = node.elements.map(alternative => this.visit(alternative))
         return this._handlers.onAlternative(node, elements);
@@ -91,8 +125,14 @@ export class RegExpMapper<T> {
     }
 
     private visitCharacterClass(node: AST.CharacterClass): T {
-        let elements = node.elements.map(element => this.visit(element))
-        return this._handlers.onCharacterClass(node, elements);
+        if (node.unicodeSets) {
+            let elements = node.elements.map(element => this.visitSet(element))
+            return this._handlers.onCharacterClass(node, elements);
+        }
+        else {
+            let elements = node.elements.map(element => this.visitRange(element))
+            return this._handlers.onCharacterClass(node, elements);
+        }
     }
 
     private visitCharacterClassRange(node: AST.CharacterClassRange): T {
@@ -146,35 +186,66 @@ export class RegExpMapper<T> {
     }
 
     private visitStringAlternative(node: AST.StringAlternative): T {
-        let elements = node.elements.map(element => this.visitCharacter(element))
+        let elements = node.elements.map(element => this.visitCharacter(element));
         return this._handlers.onStringAlternative(node, elements);
     }
+
+    // Character classes
+
+    private visitClassCharacter(node: AST.Character): U {
+        return this._handlers.onRangeCharacter(node);
+    }
+
+    private visitClassCharacterClassRange(node: AST.CharacterClassRange): U {
+        return this._handlers.onRangeCharacterClassRange(node);
+    }
+
+    private visitClassCharacterSet(node: AST.CharacterSet): U {
+        return this._handlers.onRangeCharacterSet(node);
+    }
+
+    // private visitClassCharacterClass(node: AST.UnicodeSetsCharacterClass): U {
+    //     let element = node.elements.map(element => this.visitSet(element));
+    //     return this._handlers.onClassCharacterClass(node, elements);
+    // }
+
+    // private visitClassClassStringDisjunction(node: AST.ClassStringDisjunction): U {
+    //     let elements = node.elements.map(element => this.visitCharacter(element));
+    //     return this._handlers.onStringAlternative(node, elements);
+    // }
+
+    // private visitClassExpressionCharacterClass(node: AST.ExpressionCharacterClass): U {
+        
+    // }
 }
 
 export namespace RegExpMapper {
-    export interface Mappers<T> {
+    export interface Mappers<T, U> {
         onAlternative: (node: AST.Alternative, elements: T[]) => T
         onBoundaryAssertion: (node: AST.BoundaryAssertion) => T
         onLookaroundAssertion: (node: AST.LookaroundAssertion, elements: T[]) => T
         onBackreference: (node: AST.Backreference) => T
         onCapturingGroup: (node: AST.CapturingGroup, alternatives: T[]) => T
         onCharacter: (node: AST.Character) => T
-        onCharacterClass: (node: AST.CharacterClass, elements: T[]) => T
+        onCharacterClass: (node: AST.CharacterClass, elements: U[]) => T
         onCharacterClassRange: (node: AST.CharacterClassRange, min: T, max: T) => T
         onCharacterSet: (node: AST.CharacterSet) => T
         onClassIntersection: (node: AST.ClassIntersection, l: T, r: T) => T
         onClassStringDisjunction: (node: AST.ClassStringDisjunction, alternatives: T[]) => T
         onClassSubtraction: (node: AST.ClassSubtraction, l: T, r: T) => T
         onExpressionCharacterClass: (node: AST.ExpressionCharacterClass, inner: T) => T
-        onFlags: (node: AST.Flags) => T
         onGroup: (node: AST.Group, alternatives: T[]) => T
         onPattern: (node: AST.Pattern, alternatives: T[]) => T
         onQuantifier: (node: AST.Quantifier, inner: T) => T
         onRegExpLiteral: (node: AST.RegExpLiteral, pattern: T) => T
         onStringAlternative: (node: AST.StringAlternative, elements: T[]) => T
+
+        onRangeCharacter: (node: AST.Character) => U
+        onRangeCharacterClassRange: (node: AST.CharacterClassRange) => U
+        onRangeCharacterSet: (node: AST.CharacterSet) => U
     }
 
-    export function map<T> (
+    export function map<T, U> (
         r: AST.Node,
         onAlternative: (node: AST.Alternative, elements: T[]) => T,
         onBoundaryAssertion: (node: AST.BoundaryAssertion) => T,
@@ -182,19 +253,22 @@ export namespace RegExpMapper {
         onBackreference: (node: AST.Backreference) => T,
         onCapturingGroup: (node: AST.CapturingGroup, alternatives: T[]) => T,
         onCharacter: (node: AST.Character) => T,
-        onCharacterClass: (node: AST.CharacterClass, elements: T[]) => T,
+        onCharacterClass: (node: AST.CharacterClass, elements: U[]) => T,
         onCharacterClassRange: (node: AST.CharacterClassRange, min: T, max: T) => T,
         onCharacterSet: (node: AST.CharacterSet) => T,
         onClassIntersection: (node: AST.ClassIntersection, l: T, r: T) => T,
         onClassStringDisjunction: (node: AST.ClassStringDisjunction, alternatives: T[]) => T,
         onClassSubtraction: (node: AST.ClassSubtraction, l: T, r: T) => T,
         onExpressionCharacterClass: (node: AST.ExpressionCharacterClass, inner: T) => T,
-        onFlags: (node: AST.Flags) => T,
         onGroup: (node: AST.Group, alternatives: T[]) => T,
         onPattern: (node: AST.Pattern, alternatives: T[]) => T,
         onQuantifier: (node: AST.Quantifier, inner: T) => T,
         onRegExpLiteral: (node: AST.RegExpLiteral, pattern: T) => T,
         onStringAlternative: (node: AST.StringAlternative, elements: T[]) => T,
+
+        onRangeCharacter: (node: AST.Character) => U,
+        onRangeCharacterClassRange: (node: AST.CharacterClassRange) => U,
+        onRangeCharacterSet: (node: AST.CharacterSet) => U,
     ): T {
         return new RegExpMapper({
             onAlternative,
@@ -210,12 +284,14 @@ export namespace RegExpMapper {
             onClassStringDisjunction,
             onClassSubtraction,
             onExpressionCharacterClass,
-            onFlags,
             onGroup,
             onPattern,
             onQuantifier,
             onRegExpLiteral,
-            onStringAlternative
+            onStringAlternative,
+            onRangeCharacter,
+            onRangeCharacterClassRange,
+            onRangeCharacterSet,
         }).visit(r);
     }
 }

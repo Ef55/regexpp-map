@@ -35,12 +35,14 @@ test('Char literal size map', (t) => {
         undefined, // onClassStringDisjunction
         undefined, // onClassSubtraction
         undefined, // onExpressionCharacterClass
-        undefined, // onFlags
         undefined, // onGroup
         (_, alternatives) => sum_plus_length_min_one(alternatives), // onPattern
         undefined, // onQuantifier
         (_, pattern) => pattern, // onRegExpLiteral
         undefined, // onStringAlternative
+        undefined, // onRangeCharacter
+        undefined, // onRangeCharacterClassRange
+        undefined, // onRangeCharacterSet
     );
     assert.strictEqual(result, 1);
 })
